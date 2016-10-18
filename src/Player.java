@@ -46,13 +46,13 @@ class Solver{
         entities[entityInd][1] = x;
         maze[y][x] = (char)('1'+entityInd%numberOfEntities);
         if(entityInd == 4){
-            //if(maze[y][x-1 < 0 ? width - 1 : x - 1] < '1' && maze[y][x-1 < 0 ? width - 1 : x - 1] > '4')
+            if(maze[y][x-1 < 0 ? width - 1 : x - 1] != '1' && maze[y][x-1 < 0 ? width - 1 : x - 1] != '2' && maze[y][x-1 < 0 ? width - 1 : x - 1] != '3' && maze[y][x-1 < 0 ? width - 1 : x - 1] != '4')
                 maze[y][x-1 < 0 ? width - 1 : x - 1] = toTheLeft;
-            //if(maze[(y+1)% height][x] < '1' && maze[(y+1)% height][x] > '4')
+            if(maze[(y+1)% height][x] != '1' && maze[(y+1)% height][x] != '2' && maze[(y+1)% height][x] != '3' && maze[(y+1)% height][x] != '4')
                 maze[(y+1)% height][x] = below;
-            //if(maze[y][(x+1)% width] < '1' && maze[y][(x+1)% width] > '4')
+            if(maze[y][(x+1)% width] != '1' && maze[y][(x+1)% width] != '2' && maze[y][(x+1)% width] != '3' && maze[y][(x+1)% width] != '4')
                 maze[y][(x+1)% width] = toTheRight;
-            //if(maze[y-1 < 0 ? height-1 : y-1][x] < '1' && maze[y-1 < 0 ? height-1 : y-1][x] > '4')
+            if(maze[y-1 < 0 ? height-1 : y-1][x] != '1' && maze[y-1 < 0 ? height-1 : y-1][x] != '2' && maze[y-1 < 0 ? height-1 : y-1][x] != '3' && maze[y-1 < 0 ? height-1 : y-1][x] != '4')
                 maze[y-1 < 0 ? height-1 : y-1][x] = above;
         }
         entityInd = (entityInd+1)%numberOfEntities;
@@ -74,7 +74,7 @@ class Solver{
         StringBuilder sb = new StringBuilder();
         for(char[] line : maze){
             for(char c : line)
-                sb.append(c == '#' ? (char)219 : c == '_' ? '.' : c);
+                sb.append(c == '#' ? '@' : c == '_' ? '.' : c == '5' ? 'o' : c == '1' || c == '2' || c == '3' || c == '4' ? 'O' : c);
             sb.append('\n');
         }
         return sb.toString();
@@ -122,23 +122,28 @@ class Solver{
             }
             maze[curY][curX] = 'L';
         }
-        return 'F';
+        //All dead ends, desperate times call for desperate measures
+        if(maze[(y+1)%height][x] == 'L' || maze[(y+1)%height][x] == '_') return 'A';
+        if(maze[y-1 < 0 ? height-1 : y-1][x] == 'L' || maze[y-1 < 0 ? height-1 : y-1][x] == '_') return 'E';
+        if(maze[y][(x+1)%width] == 'L' || maze[y][(x+1)%width] == '_') return 'D';
+        if(maze[y][x-1 < 0 ? width-1 : x-1] == 'L' || maze[y][x-1 < 0 ? width-1 : x-1] == '_') return 'C';
+        return 'B';
     }
     
     private boolean worthAdding(int y, int x){
         if(y < 0 || y >= height || x < 0 || x >= width) return false;
         if( (maze[y][x] >= '1' && maze[y][x] <= '4') ||  maze[y][x] == '#' || maze[y][x] == 'L') return false;
-        if(maze[y][x] ==' '){
-            if( maze[y-1 < 0 ? height-1 : y-1][x] >= '1' && maze[y-1 < 0 ? height-1 : y-1][x] <= '4') return false;
-            if( maze[(y+1)%height][x] >= '1' && maze[(y+1)%height][x] <= '4') return false;
-            if( maze[y][x-1 < 0 ? width - 1 : x - 1] >= '1' && maze[y][x-1 < 0 ? width - 1 : x - 1] <= '4') return false;
-            if( maze[y][(x+1)%width] >= '1' && maze[y][(x+1)%width] <= '4') return false;
+        if(maze[y][x] == ' ' || maze[y][x] == '_'){
+            if( maze[y-1 < 0 ? height-1 : y-1][x] == '1' || maze[y-1 < 0 ? height-1 : y-1][x] == '2' || maze[y-1 < 0 ? height-1 : y-1][x] == '3' || maze[y-1 < 0 ? height-1 : y-1][x] == '4') return false;
+            if( maze[(y+1)%height][x] == '1' || maze[(y+1)%height][x] == '2' || maze[(y+1)%height][x] == '3' || maze[(y+1)%height][x] == '4') return false;
+            if( maze[y][x-1 < 0 ? width-1 : x-1] == '1' || maze[y][x-1 < 0 ? width - 1 : x - 1] == '2' || maze[y][x-1 < 0 ? width - 1 : x - 1] == '3' || maze[y][x-1 < 0 ? width - 1 : x - 1] == '4') return false;
+            if( maze[y][(x+1)%width] == '1' || maze[y][(x+1)%width] == '2' || maze[y][(x+1)%width] == '3' || maze[y][(x+1)%width] == '4') return false;
         }
         return true;
     }
     
     //Input commands: A is go down
-    //Input commands: B is
+    //Input commands: B is wait
     //Input commands: C is go left
     //Input commands: D is go right
     //Input commands: E is go up
@@ -150,11 +155,6 @@ class Solver{
     public String toString(){
         return "Maze width:"+width
                 +"\nMaze height:"+height
-                +"\nNumber of entites:"+numberOfEntities
-                +"\nTo my left:"+toTheLeft
-                +"\nBelow me:"+below
-                +"\nTo my right:"+toTheRight
-                +"\nAbove me:"+above
                 +"\nEntity coords:"+fifthsAndSixthsToString()
                 +"\nMaze:\n"+charMatrixToString();
     }
