@@ -71,7 +71,7 @@ class Enemy{
         char[] possibleDirections;
         int numberOfPossibleDirections;
         //COMPLETE FROM HERE
-        return possibleDirections;
+        return null;
     }
 }
 
@@ -85,19 +85,157 @@ class Pacman{
     }
 }
 
+class GameState{
+    private char[][] maze;
+    private int[][] entities;
+    private int entityInd;
+    char[] pacmanSurroundings;
+    
+    public GameState(){
+        maze = new char[Solver.WIDTH][Solver.HEIGHT];
+        entities = new int[5][4];
+        for(int[] entity : entities)
+            Arrays.fill(entity, -1);
+        for(char[] column : maze)
+            Arrays.fill(column, ' ');
+    }
+    
+    public void insertEntity(int x, int y){
+        int[] entity = entities[entityInd];
+        if(entity[2] == -1 && entity[3] == -1){
+            entity[2] = 0;
+            entity[3] = 0;
+        }else{
+            entity[2] = entity[0] - x;
+            entity[2] = entity[2] > 1 ? -1 : entity[2] < -1 ? 1 : entity[2];
+            entity[3] = entity[1] - y;
+            entity[3] = entity[3] > 1 ? -1 : entity[3] < -1 ? 1 : entity[3];
+        }
+        if(entityInd == 4){
+            maze[Solver.clampWidth(x-1)][y] = pacmanSurroundings[0];
+            maze[x][Solver.clampHeight(y+1)] = pacmanSurroundings[1];
+            maze[Solver.clampWidth(x+1)][y] = pacmanSurroundings[2];
+            maze[x][Solver.clampHeight(y-1)] = pacmanSurroundings[3];
+        }
+        maze[entity[0]][entity[1]] = '_';
+        maze[x][y] = '_';
+        entity[0] = x;
+        entity[1] = y;
+        entityInd = (entityInd+1)%entities.length;
+    }
+    
+    public void insertPacmanSurroundings(char toTheLeft, char below, char toTheRight, char above){
+        pacmanSurroundings[0] = toTheLeft;
+        pacmanSurroundings[1] = below;
+        pacmanSurroundings[2] = toTheRight;
+        pacmanSurroundings[3] = above;
+    }
+    
+    /*
+      E
+    C B D
+      A
+    */
+    public char[] getPossibleMoves(int e){
+        int numberOfPossibleMoves = 0;
+        char[] moves;
+        int[] entity = entities[e];
+        if (e != 4 
+                && entity[2] != 0
+                && maze[entity[0]][Solver.clampHeight(entity[1] + 1)] == '#'
+                && maze[entity[0]][Solver.clampHeight(entity[1] - 1)] == '#'
+                && maze[Solver.clampWidth(entity[0] + entity[2])][entity[1]] != '#') {
+            moves = new char[]{entity[2] == -1 ? 'C' : 'D'};
+        } else if (e != 4 
+                && entity[3] != 0
+                && maze[Solver.clampWidth(entity[0] + 1)][entity[1]] == '#'
+                && maze[Solver.clampWidth(entity[0] - 1)][entity[1]] == '#'
+                && maze[entity[0]][Solver.clampHeight(entity[1] + entity[3])] != '#') {
+            moves = new char[]{entity[3] == -1 ? 'C' : 'D'};
+        } else {
+            numberOfPossibleMoves++;
+            boolean canRight = isClear(Solver.clampWidth(entity[0]+1), entity[1], e == 4);
+            if(canRight) numberOfPossibleMoves++;
+            boolean canLeft = isClear(Solver.clampWidth(entity[0]-1), entity[1], e == 4);
+            if(canLeft) numberOfPossibleMoves++;
+            boolean canUp = isClear(entity[0], Solver.clampWidth(entity[1]-1), e == 4);
+            if(canUp) numberOfPossibleMoves++;
+            boolean canDown = isClear(entity[0], Solver.clampWidth(entity[1]+1), e == 4);
+            if(canDown) numberOfPossibleMoves++;
+            moves = new char[numberOfPossibleMoves];
+            moves[0] = 'B';
+            numberOfPossibleMoves++;
+            if(canDown){
+                moves[numberOfPossibleMoves] = 'A';
+                numberOfPossibleMoves++;
+            }
+            if(canLeft){
+                moves[numberOfPossibleMoves] = 'C';
+                numberOfPossibleMoves++;
+            }
+            if(canRight){
+                moves[numberOfPossibleMoves] = 'D';
+                numberOfPossibleMoves++;
+            }
+            if(canUp){
+                moves[numberOfPossibleMoves] = 'E';
+                numberOfPossibleMoves++;
+            }
+        }
+        return moves;
+    }
+    
+    public void move(int e, char move) throws Exception{
+        int[] entity = entities[e];
+        int[] newCoords = new int[]{
+            move == 'B' || move == 'E' || move == 'A' ? entity[0] : move == 'C' ? Solver.clampWidth(entity[0]-1) : Solver.clampWidth(entity[0]+1), 
+            move == 'B' || move == 'C' || move == 'D' ? entity[1] : move == 'E' ? Solver.clampHeight(entity[1]-1) : Solver.clampHeight(entity[1]-1)
+        };
+        if(!isClear(newCoords[0], newCoords[1], e == 4))
+            throw  new Exception("Tried to move entity " + e + " into block " + newCoords[0] + " " + newCoords[1] + " of type " + maze[newCoords[0]] + maze[newCoords[1]]);
+        else{
+            entity[0] = newCoords[0];
+            entity[1] = newCoords[1];
+        }
+    }
+    
+    private boolean isClear(int x, int y, boolean isPacman){
+        boolean clear = maze[x][y] != '#';
+        for(int i = 0; i < 4 && clear && isPacman; i++){
+            clear = x != entities[i][0] && y != entities[i][1];
+        }
+        return clear;
+    }
+    
+    @Override
+    public String toString(){
+        StringBuilder output = new StringBuilder();
+        for(int x=0; x<maze.length; x++){
+            for(int y=0; y<maze[x].length; y++)
+                output.append(maze[x][y] == '_' ? '.' : maze[x][y]);
+            output.append('\n');
+        }
+        for(int i = 0; i<entities.length; i++){
+            int indexInOutput = entities[i][0] + entities[i][1]*maze.length;
+            output.deleteCharAt(indexInOutput);
+            output.insert(indexInOutput, i == 4 ? 'o' : 'O');
+        }
+        return output.toString();
+    }
+}
+
 class Solver{
-    private static int WIDTH;
-    private static int HEIGHT;
+    public static int WIDTH;
+    public static int HEIGHT;
     private int numberOfEntities;
     private char toTheLeft;
     private char below;
     private char toTheRight;
     private char above;
     private char[][] maze;
-    //1 and 2 are ghosts, 3 and 4 powerups (?), 5 is pacman
+    //1, 2, 3 and 4 are ghosts, 5 is pacman
     private int[][] entities;
     private int entityInd;
-    private int incrementer;
     
     public Solver(int first, int second, int third){
         WIDTH=first;
